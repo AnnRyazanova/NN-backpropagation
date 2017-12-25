@@ -15,7 +15,7 @@ namespace Task3
         private List<ReadMnist.DigitImage> patterns;
         private List<ReadMnist.DigitImage> tests;
 
-        private int maxEpoch = 5; //10; // Потолок для эпох (максимальное кол-во эпох для НС)
+        private int maxEpoch = 100; // Потолок для эпох (максимальное кол-во эпох для НС)
         private int trainSetSize; // Размер тренировочного/тестового сета
         private double learningRate = 0.5; // Скорость обучения
 
