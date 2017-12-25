@@ -15,8 +15,7 @@ namespace Task3
         private List<ReadMnist.DigitImage> patterns;
         private List<ReadMnist.DigitImage> tests;
 
-        private int maxEpoch = 10; // Потолок для эпох (максимальное кол-во эпох для НС)
-        private int curEpoch = 0; // Текущая эпоха
+        private int maxEpoch = 5; //10; // Потолок для эпох (максимальное кол-во эпох для НС)
         private int trainSetSize; // Размер тренировочного/тестового сета
         private double learningRate = 0.5; // Скорость обучения
 
@@ -217,8 +216,9 @@ namespace Task3
 			return error;
 		}
 
-		//обучение МОР, количество образцов равно количеству ответов для них
-		private int DIST_PRINT = 1;//печать через
+        
+
+		//обучение АОРО, количество образцов равно количеству ответов для них
         public void Training(Form2 form, List<List<double>> answers)
         {
             int setCount = patterns.Count;
@@ -226,55 +226,66 @@ namespace Task3
 
             richTextBox.AppendText("Start learning:\r\n");
             form.Refresh();
-            double epsEpErr = 0.0001f;
-            double[] lastErrors = new double[3];
+
+            // Если разница сумм среднеквадратичных ошибок в последних 2 эпохах меньше epsEpochError, то стоп
+            double epsEpochError = 0.0001;
+
+            // Если ошибка меньше errorEps, то стоп
+            double epsError = 0.03;
+
+            double[] lastErrors = new double[2];
 
 			for (int i = 0; i < lastErrors.Length; ++i)
 				lastErrors[i] = i;
 
-			for (int ep = 0; ep < maxEpoch; ++ep)
+            // Если пройдены все эпохи, то стоп
+			for (int curEpoch = 0; curEpoch < maxEpoch; ++curEpoch)
 			{
-				bool isStopLearning = true;
-				double sumEpErr = 0;
+				bool stopLearning = false;
+				double sumEpochError = 0;
 
-				for (int setIter = 0; setIter < setCount; ++setIter)
+				for (int iterIndex = 0; iterIndex < setCount; ++iterIndex)
 				{
-					List<double> input = patterns[setIter].Pixels;
+					List<double> input = patterns[iterIndex].Pixels;
 
 					if (isBias)
 						input.Add(1);
 
-                    int label = patterns[setIter].label;
+                    // ======================= Получение вектора ответа =======================
+                    int label = patterns[iterIndex].label;
                     var labelRes = new List<double>();
 
                     for (int i = 0; i < 10; ++i)
-                        labelRes.Add(0); // т.к. гип.тангенс, 0 при сигмоиде
+                    {
+                        labelRes.Add(0); // при сигмоиде
+                        //labelRes.Add(-1); // при гип.тангенсе
+                    }
 
                     labelRes[label] = 1;
+                    // ========================================================================
 
-					List<double> output = LayerDataTransfer(input);
+                    List<double> output = LayerDataTransfer(input);
 
-					double err = MSE(labelRes, output);
-					sumEpErr += err;
+					double error = MSE(labelRes, output);
+					sumEpochError += error;
 
-					if (err > 0.03)
-						isStopLearning = false;
+					if (error < epsError)
+						stopLearning = true;
 
-                    string outStr = "";
-                    string answStr = "";
+                    string outputInfoStr = "";
+                    string answerInfoStr = "";
                     foreach (var el in output)
-                        outStr += Math.Round(el, 4) + " ";
-                    foreach (var el in answers[label])
-                        answStr += Math.Round(el, 4) + " ";
-                    ChangeWeights(answers[label], output);
+                        outputInfoStr += Math.Round(el, 4) + " ";
+                    foreach (var el in labelRes)
+                        answerInfoStr += Math.Round(el, 4) + " ";
+                    ChangeWeights(labelRes, output);
 
                     // ============================ вывод ============================
-                    richTextBox.AppendText("ep = " + ep + " setIter = " + setIter
-                            + " err = " + Math.Round(err, 4) + "\r\n");
-                    richTextBox.AppendText("out: " + outStr + "\r\n");
-                    richTextBox.AppendText("answ: " + answStr + "\r\n");
-                    richTextBox.AppendText("label = " + label + "\r\n");
-                    richTextBox.AppendText(patterns[setIter].ToString());
+                    richTextBox.AppendText("\r\n curEpoch : " + curEpoch + "; iteration : " + iterIndex
+                                            + " error = " + Math.Round(error, 4) + "\r\n");
+                    richTextBox.AppendText("output : " + outputInfoStr + "\r\n");
+                    richTextBox.AppendText("answer : " + answerInfoStr + "\r\n");
+                    richTextBox.AppendText("label : " + label + "\r\n");
                     richTextBox.SelectionStart = richTextBox.TextLength;
                     richTextBox.ScrollToCaret();
                     form.Refresh();
@@ -282,29 +293,27 @@ namespace Task3
                 }
 
                 lastErrors[0] = lastErrors[1];
-				lastErrors[1] = lastErrors[2];
-				lastErrors[2] = sumEpErr / setCount;
+				lastErrors[1] = sumEpochError / setCount;
 
-				if (Math.Abs(lastErrors[0] - lastErrors[1]) < epsEpErr ||
-					Math.Abs(lastErrors[1] - lastErrors[2]) < epsEpErr)
+				if (Math.Abs(lastErrors[0] - lastErrors[1]) < epsEpochError)
 				{
-					richTextBox.AppendText("exit epsEpErr\r\n");
+					richTextBox.AppendText("Exit : epsEpochError more then lastErrors \r\n");
 					richTextBox.AppendText(lastErrors[0] + "\r\n");
 					richTextBox.AppendText(lastErrors[1] + "\r\n");
-					richTextBox.AppendText(lastErrors[2] + "\r\n");
 					form.Refresh();
 					return;
 				}
-				if (isStopLearning)
+				else 
+                if (stopLearning)
 				{
-					richTextBox.AppendText("exit isStopLearning\r\n");
+					richTextBox.AppendText("Exit : stopLearning (error < epsError)\r\n");
 					form.Refresh();
 					return;
 				}
 			}
-			richTextBox.AppendText("exit MAX_EP\r\n");
+            
+			richTextBox.AppendText("Exit : passed maxEpoch\r\n");
 			form.Refresh();
-
 		}
 
 
@@ -312,6 +321,8 @@ namespace Task3
         private bool IsCorrectAnswer(List<double> output, List<double> answer)
         {
             int patternNum = -1;
+
+            // Поиск позиции правильного ответа в answer
             for (int i = 0; i < answer.Count; ++i)
             {
                 if (answer[i] == 1)
@@ -322,6 +333,9 @@ namespace Task3
             }
             double maxOutSignal = double.MinValue;
             int maxOutSignalPos = -1;
+
+            // Поиск позиции правильного ответа в output 
+            // (Ищем большее значение сигнала)
             for (int i = 0; i < output.Count; ++i)
             {
                 if (maxOutSignal < output[i])
@@ -334,12 +348,11 @@ namespace Task3
         }
 
 
-
-        //Тест количество верных ответов для mnist TestDigits
+        //Тест : количество верных ответов для mnist 
         public void MnistTest(Form2 form, List<List<double>> answers)
         {
             RichTextBox richTextBox = (RichTextBox)form.Controls["richTextBox1"];
-            richTextBox.AppendText("\r\nstart Mnist Test\r\n");
+            richTextBox.AppendText("\r\nStart Mnist Test :\r\n");
             richTextBox.SelectionStart = richTextBox.TextLength;
             richTextBox.ScrollToCaret();
             form.Refresh();
@@ -348,22 +361,27 @@ namespace Task3
             for (int i = 0; i < tests.Count; ++i)
             {
                 List<double> input = tests[i].Pixels;
+
                 if (isBias)
                     input.Add(1);
+
                 int label = tests[i].label;
                 List<double> output = LayerDataTransfer(input);
+
                 if (IsCorrectAnswer(output, answers[label]))
                     goodCount++;
+
                 if (i % 100 == 0)
                 {
-                    richTextBox.AppendText("i = " + i + " goodCount = " + goodCount + "\r\n");
+                    richTextBox.AppendText("i: " + i + " goodCount: " + goodCount + "\r\n");
                     richTextBox.SelectionStart = richTextBox.TextLength;
                     richTextBox.ScrollToCaret();
                     form.Refresh();
                 }
             }
 
-            richTextBox.AppendText("goodCount = " + goodCount + "\r\nfinish Mnist Test" + "\r\n");
+            richTextBox.AppendText("goodCount: " + goodCount + "\r\n");
+            richTextBox.AppendText("Finish Mnist Test\r\n");
             richTextBox.SelectionStart = richTextBox.TextLength;
             richTextBox.ScrollToCaret();
             form.Refresh();

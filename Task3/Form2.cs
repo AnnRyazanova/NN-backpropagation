@@ -87,7 +87,7 @@ namespace Task3
         {
             Form2 form = this;
             List<List<double>> answers = new List<List<double>>();
-            AddAnswers(ref answers);
+            // AddAnswers(ref answers);
             neuralNetwork.Training(form, answers);
         }
     }
